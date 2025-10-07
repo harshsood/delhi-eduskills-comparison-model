@@ -3,14 +3,17 @@
 ## Prerequisites
 
 Your Supabase project is already configured with the connection details in `.env`:
-- VITE_SUPABASE_URL: https://uxnxaqrbaefdrqvgtrzt.supabase.co
+- VITE_SUPABASE_URL: https://zgbdxtkraqrvdvniobla.supabase.co
 - VITE_SUPABASE_ANON_KEY: (configured in .env)
+
+**Note**: The database tables and edge functions have already been deployed automatically!
 
 ## Step 1: Set Up Supabase Database
 
-1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/uxnxaqrbaefdrqvgtrzt
-2. Navigate to the SQL Editor
-3. Run the following SQL migration:
+**✅ COMPLETED** - The database has been automatically set up with the following schema:
+
+1. Dashboard: https://supabase.com/dashboard/project/zgbdxtkraqrvdvniobla
+2. The following SQL migration has been applied:
 
 ```sql
 -- Create users table
@@ -82,40 +85,24 @@ CREATE TRIGGER update_users_updated_at
 
 ## Step 2: Deploy Edge Functions
 
-You need to deploy the Edge Functions manually using the Supabase CLI:
+**✅ COMPLETED** - Both edge functions have been automatically deployed:
 
-1. Install Supabase CLI:
-```bash
-npm install -g supabase
-```
-
-2. Login to Supabase:
-```bash
-supabase login
-```
-
-3. Link your project:
-```bash
-supabase link --project-ref uxnxaqrbaefdrqvgtrzt
-```
-
-4. Deploy the functions:
-```bash
-supabase functions deploy send-otp
-supabase functions deploy verify-otp
-```
+- ✅ `send-otp` - Generates and stores OTP codes
+- ✅ `verify-otp` - Verifies OTP and creates user accounts
 
 The edge function files are located in:
 - `supabase/functions/send-otp/index.ts`
 - `supabase/functions/verify-otp/index.ts`
+
+You can view them in your Supabase Dashboard → Edge Functions
 
 ## Step 3: Configure Netlify Environment Variables
 
 In your Netlify dashboard (Site settings → Environment variables), add:
 
 ```
-VITE_SUPABASE_URL=https://uxnxaqrbaefdrqvgtrzt.supabase.co
-VITE_SUPABASE_ANON_KEY=<your-anon-key-from-.env>
+VITE_SUPABASE_URL=https://zgbdxtkraqrvdvniobla.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnYmR4dGtyYXFydmR2bmlvYmxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4MDk0NzUsImV4cCI6MjA3NTM4NTQ3NX0.fVl27HRloSCRF_q3vHXulcRac28wb3JB4LbRuMglDkw
 ```
 
 ## Step 4: Deploy to Netlify
