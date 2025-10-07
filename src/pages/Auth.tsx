@@ -8,24 +8,28 @@ import { Link, useNavigate } from "react-router-dom";
 import { GraduationCap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { authService } from "@/services/auth";
 
 const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [currentEmail, setCurrentEmail] = useState("");
+  const [currentPhone, setCurrentPhone] = useState("");
+  const [currentName, setCurrentName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const emailSchema = z.string().email("Invalid email address").max(255);
   const passwordSchema = z.string().min(8, "Password must be at least 8 characters").max(100);
   const otpSchema = z.string().length(6, "OTP must be 6 digits").regex(/^\d+$/, "OTP must contain only numbers");
 
-  const handleSendOTP = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSendOTP = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const name = formData.get("name") as string;
+    const phone = formData.get("phone") as string;
 
-    // Validate email
     const emailValidation = emailSchema.safeParse(email);
     if (!emailValidation.success) {
       toast({
@@ -36,7 +40,6 @@ const Auth = () => {
       return;
     }
 
-    // Validate name
     if (!name || name.trim().length === 0 || name.trim().length > 100) {
       toast({
         title: "Validation Error",
@@ -46,20 +49,46 @@ const Auth = () => {
       return;
     }
 
-    setCurrentEmail(email);
-    setIsOtpSent(true);
-    toast({
-      title: "OTP Sent",
-      description: `A 6-digit OTP has been sent to ${email}`,
-    });
+    if (!phone || phone.trim().length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Phone number is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await authService.sendOTP(email, phone, name);
+
+      setCurrentEmail(email);
+      setCurrentPhone(phone);
+      setCurrentName(name);
+      setIsOtpSent(true);
+
+      toast({
+        title: "OTP Sent",
+        description: response.devOtp
+          ? `OTP: ${response.devOtp} (Development Mode)`
+          : `A 6-digit OTP has been sent to ${phone}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send OTP",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyOTP = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleVerifyOTP = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const otp = formData.get("otp") as string;
 
-    // Validate OTP
     const otpValidation = otpSchema.safeParse(otp);
     if (!otpValidation.success) {
       toast({
@@ -70,24 +99,35 @@ const Auth = () => {
       return;
     }
 
-    // Simulate OTP verification
-    toast({
-      title: "Registration Successful",
-      description: "Your account has been created successfully!",
-    });
-    
-    setTimeout(() => {
-      navigate("/compare");
-    }, 1500);
+    setIsLoading(true);
+    try {
+      const response = await authService.verifyOTP(currentEmail, currentPhone, currentName, otp);
+
+      toast({
+        title: "Registration Successful",
+        description: "Your account has been created successfully!",
+      });
+
+      setTimeout(() => {
+        navigate("/compare");
+      }, 1500);
+    } catch (error) {
+      toast({
+        title: "Verification Failed",
+        description: error instanceof Error ? error.message : "Invalid OTP. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const email = formData.get("login-email") as string;
     const password = formData.get("login-password") as string;
 
-    // Validate email
     const emailValidation = emailSchema.safeParse(email);
     if (!emailValidation.success) {
       toast({
@@ -98,7 +138,6 @@ const Auth = () => {
       return;
     }
 
-    // Validate password
     const passwordValidation = passwordSchema.safeParse(password);
     if (!passwordValidation.success) {
       toast({
@@ -109,14 +148,35 @@ const Auth = () => {
       return;
     }
 
-    toast({
-      title: "Login Successful",
-      description: "Welcome back!",
-    });
-    
-    setTimeout(() => {
-      navigate("/compare");
-    }, 1500);
+    setIsLoading(true);
+    try {
+      const response = await authService.login(email, password);
+
+      if (response.success) {
+        toast({
+          title: "Login Successful",
+          description: "Welcome back!",
+        });
+
+        setTimeout(() => {
+          navigate("/compare");
+        }, 1500);
+      } else {
+        toast({
+          title: "Login Failed",
+          description: response.error || "Invalid credentials",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred during login",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -185,8 +245,8 @@ const Auth = () => {
                         maxLength={15}
                       />
                     </div>
-                    <Button type="submit" className="w-full">
-                      Send OTP
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? "Sending..." : "Send OTP"}
                     </Button>
                   </form>
                 ) : (
@@ -206,8 +266,8 @@ const Auth = () => {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      <Button type="submit" className="flex-1">
-                        Verify & Register
+                      <Button type="submit" className="flex-1" disabled={isLoading}>
+                        {isLoading ? "Verifying..." : "Verify & Register"}
                       </Button>
                       <Button
                         type="button"
@@ -260,8 +320,8 @@ const Auth = () => {
                       maxLength={100}
                     />
                   </div>
-                  <Button type="submit" className="w-full">
-                    Login
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Logging in..." : "Login"}
                   </Button>
                   <Button
                     type="button"
