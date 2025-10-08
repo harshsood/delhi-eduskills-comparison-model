@@ -69,7 +69,9 @@ const Auth = () => {
 
       toast({
         title: "OTP Sent",
-        description: `A 6-digit OTP has been sent to ${phone}`,
+        description: response.devOtp
+          ? `OTP: ${response.devOtp} ${response.smsStatus === 'success' ? '(SMS Sent)' : response.smsError ? `(SMS Failed: ${response.smsError})` : '(SMS Pending)'}`
+          : `A 6-digit OTP has been sent to ${phone}`,
       });
     } catch (error) {
       toast({

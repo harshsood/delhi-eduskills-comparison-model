@@ -62,8 +62,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    let smsStatus = "pending";
+    let smsError = null;
+
     try {
-      const authkeyUrl = `https://api.authkey.io/request?authkey=${authkeyApiKey}&mobile=${encodeURIComponent(phone)}&country_code=91&sid=14537&otp=${otpCode}`;
+      const cleanPhone = phone.replace(/\D/g, '');
+      const authkeyUrl = `https://api.authkey.io/request?authkey=${authkeyApiKey}&mobile=${cleanPhone}&country_code=91&sid=14537&otp=${otpCode}`;
+
+      console.log(`Sending SMS to: ${cleanPhone}`);
 
       const smsResponse = await fetch(authkeyUrl, {
         method: "GET",
@@ -71,21 +77,31 @@ Deno.serve(async (req: Request) => {
 
       const smsData = await smsResponse.json();
 
-      if (!smsResponse.ok || smsData.status !== "success") {
-        console.error("Authkey API error:", smsData);
+      console.log("Authkey API response:", JSON.stringify(smsData));
+
+      if (smsResponse.ok && smsData.Message === "Message sent successfully") {
+        console.log(`OTP sent successfully via SMS to ${cleanPhone}`);
+        smsStatus = "success";
       } else {
-        console.log(`OTP sent successfully via SMS to ${phone}`);
+        console.error("Authkey API error:", smsData);
+        smsStatus = "failed";
+        smsError = smsData.Message || "Failed to send SMS";
       }
-    } catch (smsError) {
-      console.error("Error sending SMS via Authkey:", smsError);
+    } catch (error) {
+      console.error("Error sending SMS via Authkey:", error);
+      smsStatus = "failed";
+      smsError = error.message;
     }
 
-    console.log(`OTP generated for ${phone}: ${otpCode}`);
+    console.log(`OTP generated for ${phone}: ${otpCode} (SMS Status: ${smsStatus})`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "OTP sent successfully",
+        smsStatus,
+        smsError,
+        devOtp: otpCode,
       }),
       {
         status: 200,
