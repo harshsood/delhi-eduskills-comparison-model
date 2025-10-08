@@ -24,6 +24,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authkeyApiKey = Deno.env.get("AUTHKEY_API_KEY") || "c31b7fef4132a385";
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { phone, email, name }: SendOTPRequest = await req.json();
@@ -61,13 +62,30 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    try {
+      const authkeyUrl = `https://api.authkey.io/request?authkey=${authkeyApiKey}&mobile=${encodeURIComponent(phone)}&country_code=91&sid=14537&otp=${otpCode}`;
+
+      const smsResponse = await fetch(authkeyUrl, {
+        method: "GET",
+      });
+
+      const smsData = await smsResponse.json();
+
+      if (!smsResponse.ok || smsData.status !== "success") {
+        console.error("Authkey API error:", smsData);
+      } else {
+        console.log(`OTP sent successfully via SMS to ${phone}`);
+      }
+    } catch (smsError) {
+      console.error("Error sending SMS via Authkey:", smsError);
+    }
+
     console.log(`OTP generated for ${phone}: ${otpCode}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: "OTP sent successfully",
-        devOtp: otpCode,
       }),
       {
         status: 200,
